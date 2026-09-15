@@ -11,7 +11,7 @@ def digest(path):
 
 def gh(*args):return subprocess.check_output(['gh',*args],cwd=ROOT,text=True).strip()
 
-def remote_release():return json.loads(gh('api',f'repos/{REPOSITORY}/releases/tags/{TAG}'))
+def remote_release(release_id):return json.loads(gh('api',f'repos/{REPOSITORY}/releases/{release_id}'))
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--publish',action='store_true');args=parser.parse_args()
@@ -44,8 +44,14 @@ def main():
     if existing and not existing['draft']:raise RuntimeError('Published release already exists; inspect it before making changes')
     if not existing:
         gh('release','create',TAG,'--repo',REPOSITORY,'--target',commit,'--title','FIELD / FLOW 3.0','--draft','--notes-file',str(ROOT/'docs/release_notes.md'))
+        existing=next(r for r in json.loads(gh('api',f'repos/{REPOSITORY}/releases')) if r['tag_name']==TAG)
+    # An unpublished tag need not exist yet. Address the authenticated draft
+    # by release ID until publication creates its tag, and keep its source
+    # target current when resuming an interrupted upload.
+    release_id=existing['id']
+    gh('release','edit',TAG,'--repo',REPOSITORY,'--target',commit,'--draft')
     for row in plan:
-        assets={a['name']:a for a in remote_release()['assets']};asset=assets.get(row['name'])
+        assets={a['name']:a for a in remote_release(release_id)['assets']};asset=assets.get(row['name'])
         if asset:
             if asset.get('digest')!='sha256:'+row['sha256'] or asset['size']!=row['bytes']:raise RuntimeError('Existing remote asset differs: '+row['name'])
             print('UPLOAD_VERIFIED_EXISTING',row['name'],flush=True);continue
@@ -55,15 +61,15 @@ def main():
         for attempt in range(3):
             try:gh('release','upload',TAG,row['path'],'--repo',REPOSITORY);break
             except subprocess.CalledProcessError:
-                assets={a['name']:a for a in remote_release()['assets']};asset=assets.get(row['name'])
+                assets={a['name']:a for a in remote_release(release_id)['assets']};asset=assets.get(row['name'])
                 if asset and asset.get('digest')=='sha256:'+row['sha256'] and asset['size']==row['bytes']:break
                 if asset or attempt==2:raise
                 time.sleep(2)
-        asset=next(a for a in remote_release()['assets'] if a['name']==row['name'])
+        asset=next(a for a in remote_release(release_id)['assets'] if a['name']==row['name'])
         if asset.get('digest')!='sha256:'+row['sha256'] or asset['size']!=row['bytes']:raise RuntimeError('Remote upload verification failed: '+row['name'])
         print('UPLOAD_VERIFIED',row['name'],flush=True)
     gh('release','edit',TAG,'--repo',REPOSITORY,'--draft=false','--latest')
-    release=remote_release()
+    release=remote_release(release_id)
     if release['draft']:raise RuntimeError('Release is still a draft')
     receipt=dict(passed=True,repository='https://github.com/'+REPOSITORY,release=release['html_url'],commit=commit,
                  assets=[dict(name=a['name'],bytes=a['size'],digest=a.get('digest'),url=a['browser_download_url']) for a in release['assets']])
