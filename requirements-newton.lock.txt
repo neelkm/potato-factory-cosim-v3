@@ -1,0 +1,10 @@
+coacd==1.0.14
+fast_simplification==0.2.0
+newton==1.5.0
+newton-usd-schemas==0.5.0
+numpy==2.5.3
+./reference/ovnewton
+ovstage @ https://artifactory.pdx.nvidia.com/artifactory/api/pypi/ct-omniverse-pypi-local/packages/ovstage/0.2.0.378985/ovstage-0.2.0.378985-py3-none-win_amd64.whl#sha256=14385c38f6dea54e15e655f75cce452c76d28bb70e5c16cb45b289f8e9cf3db9
+physx-usd-schemas==25.11.1
+scipy==1.18.1
+warp-lang==1.16.0

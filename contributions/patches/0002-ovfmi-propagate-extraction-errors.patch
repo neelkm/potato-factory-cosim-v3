@@ -1,0 +1,14 @@
+--- a/projects/ovfmi/python/_fmpy_runtime.py
++++ b/projects/ovfmi/python/_fmpy_runtime.py
+@@ -263,9 +263,8 @@
+             try:
+                 self._unzip_dir = unzipdir
+                 fmpy.extract(filename=self._fmu_location, unzipdir=unzipdir)
+-            except Exception as e:
+-                print(e)
+-                return
++            except Exception:
++                raise
+             self._should_delete_unzip_directory = True
+         self._model_description = fmpy.read_model_description(filename=self._unzip_dir)
+         self._add_bundled_windows_binary_if_needed()

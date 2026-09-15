@@ -1,0 +1,12 @@
+Pygments==2.21.0
+colorama==0.4.6
+iniconfig==2.3.0
+numpy==2.3.5
+nvtx==0.2.14
+packaging==26.3
+pip==24.2
+pluggy==1.6.0
+pytest==9.1.1
+scipy==1.16.3
+usd-core==26.8
+warp-lang==1.16.0

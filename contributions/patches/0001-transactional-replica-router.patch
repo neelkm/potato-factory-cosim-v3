@@ -1,0 +1,44 @@
+--- a/cosim/core/partition.py
++++ b/cosim/core/partition.py
+@@ -147,6 +147,10 @@
+         self.transitions = 0
+ 
+     def route(self, outputs, inputs):
++        destinations = inputs
++        inputs = [np.empty_like(port) for port in destinations]
++        owners = self.owners.copy()
++        transitions = self.transitions
+         counts = [0] * len(inputs)
+         seen = set()
+         for source, records in enumerate(outputs):
+@@ -155,7 +159,7 @@
+                 if object_id < 0 or object_id >= len(self.owners) or object_id in seen:
+                     raise RuntimeError(f"invalid or duplicate boundary object {object_id}")
+                 seen.add(object_id)
+-                if self.owners[object_id] != source:
++                if owners[object_id] != source:
+                     raise RuntimeError(f"worker {source} published non-owned object {object_id}")
+                 gate = self.gates[gate_id]
+                 up, down = gate["workers"]
+@@ -174,8 +178,8 @@
+                     recipients.append((target, OWNERSHIP_ACTIVATE_TELEPORT))
+                     if self.mode == "teleport":
+                         recipients.append((source, OWNERSHIP_RETIRE))
+-                    self.owners[object_id] = target
+-                    self.transitions += 1
++                    owners[object_id] = target
++                    transitions += 1
+                 for worker, command in recipients:
+                     index = counts[worker]
+                     if index >= len(inputs[worker]):
+@@ -183,6 +187,10 @@
+                     inputs[worker][index] = row
+                     inputs[worker][index, 2] = command
+                     counts[worker] += 1
++        for destination, prepared, count in zip(destinations, inputs, counts):
++            destination[:count] = prepared[:count]
++        self.owners[:] = owners
++        self.transitions = transitions
+         return counts
+ 
+ 

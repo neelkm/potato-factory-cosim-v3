@@ -1,0 +1,148 @@
+#usda 1.0
+(
+    defaultPrim = "Factory"
+)
+
+def Scope "Factory"
+{
+    custom token factory:contactPolicy = "assembly_transaction"
+    custom string factory:version = "3.0.0"
+
+    def OmniSimCell "sensors"
+    {
+        custom token sim:cell:role = "controlPlant"
+
+        def OmniSimEngine "Engine"
+        {
+            custom token factory:backend = "ovphysx"
+            custom token sim:engine:device = "cpu"
+            custom token sim:engine:kind = "script"
+            custom double sim:engine:rateHz = 30
+            custom token sim:engine:script = "sense"
+        }
+
+        def OmniSimPort "Inputs"
+        {
+            custom string factory:layout = "presence,objectId,defectScore,washed,boxCount,boxReady,armBusy,palletCount,targetCount,physicsTick"
+            custom string factory:units = "dimensionless values; integer physics tick at 240 Hz"
+            custom int sim:port:count = 1
+            custom token sim:port:direction = "output"
+            custom token sim:port:frame = "controller"
+            custom token sim:port:quantity = "signal"
+            custom double sim:port:rateHz = 30
+            custom int sim:port:width = 10
+        }
+    }
+
+    def OmniSimCell "controller"
+    {
+        custom token sim:cell:role = "controlPlant"
+
+        def OmniSimEngine "Engine"
+        {
+            custom token factory:backend = "ovfmi"
+            custom token sim:engine:device = "cpu"
+            custom token sim:engine:kind = "script"
+            custom double sim:engine:rateHz = 30
+            custom token sim:engine:script = "control"
+        }
+
+        def OmniSimPort "Inputs"
+        {
+            custom string factory:layout = "presence,objectId,defectScore,washed,boxCount,boxReady,armBusy,palletCount,targetCount,physicsTick"
+            custom string factory:units = "dimensionless values; integer physics tick at 240 Hz"
+            custom int sim:port:count = 1
+            custom token sim:port:direction = "input"
+            custom token sim:port:frame = "controller"
+            custom token sim:port:quantity = "signal"
+            custom double sim:port:rateHz = 30
+            custom int sim:port:width = 10
+        }
+
+        def OmniSimPort "Outputs"
+        {
+            custom string factory:layout = "acceptPulse,rejectPulse,decisionId,valvePressure,conveyorRun,packRequest,forkliftRequest,acceptedTotal,rejectedTotal,physicsTick"
+            custom string factory:units = "dimensionless values; integer physics tick at 240 Hz"
+            custom int sim:port:count = 1
+            custom token sim:port:direction = "output"
+            custom token sim:port:frame = "controller"
+            custom token sim:port:quantity = "signal"
+            custom double sim:port:rateHz = 30
+            custom int sim:port:width = 10
+        }
+    }
+
+    def OmniSimCell "line"
+    {
+        custom token sim:cell:role = "workcell"
+
+        def OmniSimEngine "Engine"
+        {
+            custom token factory:backend = "ovphysx"
+            custom token sim:engine:device = "cpu"
+            custom token sim:engine:kind = "script"
+            custom double sim:engine:rateHz = 30
+            custom token sim:engine:script = "line"
+        }
+
+        def OmniSimPort "Outputs"
+        {
+            custom string factory:layout = "acceptPulse,rejectPulse,decisionId,valvePressure,conveyorRun,packRequest,forkliftRequest,acceptedTotal,rejectedTotal,physicsTick"
+            custom string factory:units = "dimensionless values; integer physics tick at 240 Hz"
+            custom int sim:port:count = 1
+            custom token sim:port:direction = "input"
+            custom token sim:port:frame = "controller"
+            custom token sim:port:quantity = "signal"
+            custom double sim:port:rateHz = 30
+            custom int sim:port:width = 10
+        }
+    }
+
+    def OmniSimCell "packing"
+    {
+        custom token sim:cell:role = "workcell"
+
+        def OmniSimEngine "Engine"
+        {
+            custom token factory:backend = "ovnewton"
+            custom token sim:engine:device = "cpu"
+            custom token sim:engine:kind = "script"
+            custom double sim:engine:rateHz = 30
+            custom token sim:engine:script = "packing"
+        }
+
+        def OmniSimPort "Interlocks"
+        {
+            custom string factory:layout = "acceptPulse,rejectPulse,decisionId,valvePressure,conveyorRun,packRequest,forkliftRequest,acceptedTotal,rejectedTotal,physicsTick"
+            custom string factory:units = "dimensionless values; integer physics tick at 240 Hz"
+            custom int sim:port:count = 1
+            custom token sim:port:direction = "input"
+            custom token sim:port:frame = "controller"
+            custom token sim:port:quantity = "signal"
+            custom double sim:port:rateHz = 30
+            custom int sim:port:width = 10
+        }
+    }
+
+    def OmniSimCoupling "Edge0"
+    {
+        custom string sim:coupling:mode = "signalExchange"
+        custom string sim:coupling:source = "sensors/Inputs"
+        custom string sim:coupling:target = "controller/Inputs"
+    }
+
+    def OmniSimCoupling "Edge1"
+    {
+        custom string sim:coupling:mode = "signalExchange"
+        custom string sim:coupling:source = "controller/Outputs"
+        custom string sim:coupling:target = "line/Outputs"
+    }
+
+    def OmniSimCoupling "Edge2"
+    {
+        custom string sim:coupling:mode = "signalExchange"
+        custom string sim:coupling:source = "controller/Outputs"
+        custom string sim:coupling:target = "packing/Interlocks"
+    }
+}
+

@@ -1,0 +1,91 @@
+<?xml version='1.0' encoding='utf-8'?>
+<fmiModelDescription fmiVersion="2.0" modelName="FactoryController" guid="{c16c2a15-675c-4bba-a66c-76e48dcb7a6f}" generationTool="FIELD / FLOW native FMI build" description="Quality sensor, pneumatic valve and packaging interlocks">
+  <CoSimulation modelIdentifier="FactoryController" canHandleVariableCommunicationStepSize="true" />
+  <DefaultExperiment startTime="0" stepSize="0.03333333333333333" />
+  <ModelVariables>
+    <ScalarVariable name="presence" valueReference="0" causality="input" variability="continuous">
+      <Real start="0.0" />
+    </ScalarVariable>
+    <ScalarVariable name="objectId" valueReference="1" causality="input" variability="continuous">
+      <Real start="0.0" />
+    </ScalarVariable>
+    <ScalarVariable name="defectScore" valueReference="2" causality="input" variability="continuous">
+      <Real start="0.0" />
+    </ScalarVariable>
+    <ScalarVariable name="washed" valueReference="3" causality="input" variability="continuous">
+      <Real start="0.0" />
+    </ScalarVariable>
+    <ScalarVariable name="boxCount" valueReference="4" causality="input" variability="continuous">
+      <Real start="0.0" />
+    </ScalarVariable>
+    <ScalarVariable name="boxReady" valueReference="5" causality="input" variability="continuous">
+      <Real start="0.0" />
+    </ScalarVariable>
+    <ScalarVariable name="armBusy" valueReference="6" causality="input" variability="continuous">
+      <Real start="0.0" />
+    </ScalarVariable>
+    <ScalarVariable name="palletCount" valueReference="7" causality="input" variability="continuous">
+      <Real start="0.0" />
+    </ScalarVariable>
+    <ScalarVariable name="targetCount" valueReference="8" causality="input" variability="continuous">
+      <Real start="18.0" />
+    </ScalarVariable>
+    <ScalarVariable name="acceptPulse" valueReference="20" causality="output" variability="continuous" initial="calculated">
+      <Real />
+    </ScalarVariable>
+    <ScalarVariable name="rejectPulse" valueReference="21" causality="output" variability="continuous" initial="calculated">
+      <Real />
+    </ScalarVariable>
+    <ScalarVariable name="decisionId" valueReference="22" causality="output" variability="continuous" initial="calculated">
+      <Real />
+    </ScalarVariable>
+    <ScalarVariable name="valvePressure" valueReference="23" causality="output" variability="continuous" initial="calculated">
+      <Real />
+    </ScalarVariable>
+    <ScalarVariable name="conveyorRun" valueReference="24" causality="output" variability="continuous" initial="calculated">
+      <Real />
+    </ScalarVariable>
+    <ScalarVariable name="packRequest" valueReference="25" causality="output" variability="continuous" initial="calculated">
+      <Real />
+    </ScalarVariable>
+    <ScalarVariable name="forkliftRequest" valueReference="26" causality="output" variability="continuous" initial="calculated">
+      <Real />
+    </ScalarVariable>
+    <ScalarVariable name="acceptedTotal" valueReference="27" causality="output" variability="continuous" initial="calculated">
+      <Real />
+    </ScalarVariable>
+    <ScalarVariable name="rejectedTotal" valueReference="28" causality="output" variability="continuous" initial="calculated">
+      <Real />
+    </ScalarVariable>
+    <ScalarVariable name="defectThreshold" valueReference="50" causality="parameter" variability="fixed">
+      <Real start="0.1" />
+    </ScalarVariable>
+    <ScalarVariable name="boxTarget" valueReference="51" causality="parameter" variability="fixed">
+      <Real start="18.0" />
+    </ScalarVariable>
+  </ModelVariables>
+  <ModelStructure>
+    <Outputs>
+      <Unknown index="10" />
+      <Unknown index="11" />
+      <Unknown index="12" />
+      <Unknown index="13" />
+      <Unknown index="14" />
+      <Unknown index="15" />
+      <Unknown index="16" />
+      <Unknown index="17" />
+      <Unknown index="18" />
+    </Outputs>
+    <InitialUnknowns>
+      <Unknown index="10" />
+      <Unknown index="11" />
+      <Unknown index="12" />
+      <Unknown index="13" />
+      <Unknown index="14" />
+      <Unknown index="15" />
+      <Unknown index="16" />
+      <Unknown index="17" />
+      <Unknown index="18" />
+    </InitialUnknowns>
+  </ModelStructure>
+</fmiModelDescription>
