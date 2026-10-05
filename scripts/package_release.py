@@ -32,6 +32,20 @@ def selected(group):
         files=[OUT/'potato_factory.mp4',OUT/'poster.jpg',OUT/'app_screenshot.png',OUT/'VALIDATION.md']
         files += list(OUT.glob('station_*.jpg'))
         files += [p for p in OUT.glob('*.json') if p.name.endswith('validation.json') or p.name in ('delivery_manifest.json','render_manifest.json','runtime_manifest.json','storyboard.json','render_progress.json')]
+    elif group=='scrub':
+        for name in ['scrub_delivery_manifest.json','scrub_20261005/validation.json','scrub_20261005/replay_validation.json','scrub_media/video_validation.json','ui_scrub_smoke_validation.json']:
+            if not json.loads((OUT/name).read_text())['passed']:raise RuntimeError('Failed qualification: '+name)
+        names=['factory_scrub.usda','factory_physx_scrub.usda','scrub_visuals.usda','scrub_labels.usdc','scrub_config.json',
+               'potato_factory_scrub.blend','potato_factory_scrub.mp4','active_run.json','scrub_delivery_manifest.json',
+               'ui_scrub_smoke_validation.json','scrub_checkpoint_validation.json','app_scrub_screenshot.png']
+        files=[OUT/name for name in names]
+        files += list(OUT.glob('factory_scrub_replay*'))
+        files += [p for p in (OUT/'scrub_20261005').rglob('*') if p.is_file() and 'liquid_mesh' not in p.parts and p.suffix in ('.npy','.json','.usdc')]
+        files += [p for p in (OUT/'scrub_media').glob('*') if p.suffix in ('.json','.jpg')]
+        debug=OUT/'physics_debug'
+        capture=json.loads((debug/'view.json').read_text())['capture']
+        files += [debug/name for name in ['view.json','physics_debug_demo.mp4','validation.json','ui_validation.json','video_validation.json','delivery_validation.json']]
+        files += [debug/capture/name for name in ['capture.json','motion.npz','scene.usda']]
     else:raise ValueError(group)
     files=sorted(set(files))
     if any(not p.is_file() for p in files):raise RuntimeError('Missing release asset')
@@ -67,7 +81,7 @@ def pack(group):
     (DIST/f'{group}-manifest.json').write_text(json.dumps(report,indent=2));print('PACK_COMPLETE',group,len(files),archive.stat().st_size,flush=True)
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('group',choices=['assets','replay','media','manifest']);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('group',choices=['assets','replay','media','scrub','manifest']);args=parser.parse_args()
     if args.group!='manifest':pack(args.group);return
     groups=[json.loads((DIST/f'{g}-manifest.json').read_text()) for g in ['assets','replay','media']]
     for group in groups:

@@ -4,13 +4,12 @@ The delivered local folder already contains working isolated environments and Bl
 
 ## From GitHub
 
-Clone the private project and download its release asset bundle and replay parts. Use `scripts/unpack_release.py` to verify hashes and extract them into the project root. They contain Blender/USD scenes, textures, original asset provenance, bridge DLLs, the FMU, measured replay and video. Large media and caches are kept out of Git history.
+Clone the public project and download the preserved v3.0.0 base plus the v3.1.0 update bundle. Use `scripts/unpack_release.py` to verify hashes and extract them into the project root. They contain Blender/USD scenes, textures, original asset provenance, bridge DLLs, the FMU, measured replay and video. Large media and caches are kept out of Git history.
 
 ```powershell
 gh repo clone neelkm/potato-factory-cosim-v3
 cd potato-factory-cosim-v3
-gh release download v3.0.0 --dir downloads/release --pattern '*manifest.json' --pattern '*.part*' --pattern 'factory-*.zip'
-py -3.12 scripts/unpack_release.py downloads/release/release_manifest.json
+py -3.12 scripts/download_latest.py
 ```
 
 Multipart archives are reassembled automatically. Keep every part beside its manifest. Extraction verifies all hashes and refuses to overwrite a different local file. To verify a download without extracting, add `--verify-only`.

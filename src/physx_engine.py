@@ -6,8 +6,12 @@ from ovphysx.api import set_log_level
 from ovphysx.types import TensorType,LogLevel
 from state_protocol import RigidState
 class PhysXEngine:
-    def __init__(self,source,inactive=(),fmi=False):
-        set_log_level(LogLevel.ERROR);self.px=PhysX();set_log_level(LogLevel.ERROR)
+    def __init__(self,source,inactive=(),fmi=False,recording_directory=None):
+        from ovphysx import PhysXConfig
+        config = (PhysXConfig(omnipvd_output_enabled=True,
+                             omnipvd_ovd_recording_directory=str(recording_directory))
+                  if recording_directory else None)
+        set_log_level(LogLevel.ERROR);self.px=PhysX(config=config) if config else PhysX();set_log_level(LogLevel.ERROR)
         self.stage=ovstage.Stage('factory-physx');ovstage.population.open_usd(self.stage,source,ordinal=1,domains=ovstage.PopulationDomain.PHYSICS);self.stage.advance_write_floor(1).wait();self.px.attach_ovstage(self.stage,read_ordinal=1)
         self.bindings={};self.inactive=set();self.tick=0;self.fmi=None;self.pending_velocity={}
         if fmi:

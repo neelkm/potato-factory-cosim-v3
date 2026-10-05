@@ -1,14 +1,24 @@
-# FIELD / FLOW 3.0
+# FIELD / FLOW 3.1
 
 A Blender-authored OpenUSD potato factory with NVIDIA cosim coordination, an ovphysx production line, an ovnewton Franka packing cell, native ovfmi control and ovrtx path tracing.
 
 ![The complete FIELD / FLOW factory](docs/preview.jpg)
 
-[Download the release](https://github.com/neelkm/potato-factory-cosim-v3/releases/tag/v3.0.0) · [Watch or download the film](https://github.com/neelkm/potato-factory-cosim-v3/releases/download/v3.0.0/potato_factory.mp4) · [Setup](docs/setup.md) · [Measured results](docs/validation.md)
+[Download the release](https://github.com/neelkm/potato-factory-cosim-v3/releases/tag/v3.0.0) · [Watch or download the film](https://github.com/neelkm/potato-factory-cosim-v3/releases/download/v3.1.0/potato_factory_scrub.mp4) · [Setup](docs/setup.md) · [Measured results](docs/scrub_validation.md)
 
-Open **Launch Factory.cmd**. Select a station, seek through the measured run, play at different speeds, or drag and scroll to move the camera. **Play finished video** opens the 57-second station tour. The viewport traces each requested frame; the finished video plays smoothly at 24 fps.
+Open **Launch Factory.cmd**. Select a station, seek through the measured run, play at different speeds, or drag and scroll to move the camera. **Play finished video** opens the delivered tour: 30 seconds for the scrubber variant or 57 seconds for the original. The viewport traces each requested frame; the finished video plays smoothly at 24 fps.
 
-The complete native batch, matching USD replay, desktop app and 57-second film passed release validation. Measured outcomes and file hashes are recorded in `output/VALIDATION.md` and `output/delivery_manifest.json`.
+**Physics debug workspace** in the sidebar opens the forklift alignment and Newton→PhysX return inspector. Use **Launch Physics Debug.cmd** to open it directly. It includes native contact samples, frame stepping, collision proxies, body metadata and handoff comparisons. See [the debug viewer guide](docs/physics_debug.md) for capture provenance and the 26-second captioned demonstration. The v3.1.0 update includes the matching debug capture; regenerate it with **Capture Physics Debug.cmd**.
+
+**Post-wash scrubbing variant:** six compliant PhysX brush rotors scrub potatoes
+between washing and inspection. FMI checks both washing and measured brush contact
+before acceptance. The variant adds a station view and scrubbed count; its USD,
+Blender file, cache and 30-second captioned film use separate names. See the
+[scrubber guide](docs/post_wash_scrubbing.md) for the physical model, references,
+validation and reproduction. **Launch Factory Original.cmd** opens the preserved
+pre-scrubber replay. The preserved [v3.0.0 release](https://github.com/neelkm/potato-factory-cosim-v3/releases/tag/v3.0.0) supplies the base assets. Run `py -3.12 scripts/download_latest.py` to download and verify both the base and update bundles.
+
+The current native batch passed 45 production checks: 126 scrubbed, 108 packed, 18 discarded, six cartons and seven engine transfers. The 30-second film passed full frame decoding. See `docs/scrub_validation.md`; archive hashes accompany the release.
 
 ## What changed
 
@@ -23,11 +33,12 @@ NVIDIA's teleport, replica and explicit force-exchange APIs remain accessible fo
 ## Factory stations
 
 1. A slowly tipping truck unloads smaller, textured potatoes onto a receiving belt.
-2. A driven roller section washes them with PhysX fluid particles and passes them through quality inspection.
-3. The FMI controller rejects visibly damaged or insufficiently washed potatoes into the discard bin.
-4. An output belt fills lightweight cardboard cartons with 15–20 good potatoes. Extended guides contain the queue through the belt exit, and the gate waits for the replacement carton to arrive. The terminal belt clears coasting produce before PhysX closes the lids.
-5. Newton simulates the Franka FR3, four suction contacts, loaded cartons and pallet. The arm places six cartons.
-6. The complete pallet and load return to PhysX. A SimReady forklift aligns its fork carriage with the measured pallet position, then lifts and delivers the load to dispatch through contact.
+2. A driven roller section washes them with PhysX fluid particles.
+3. The post-wash variant adds six compliant PhysX brush rotors before inspection. Loaded contact time and tangential slip drive an empirical cleaning check.
+4. The FMI controller rejects visibly damaged or insufficiently washed potatoes into the discard bin. The post-wash variant also requires the brush-contact check to pass.
+5. An output belt fills lightweight cardboard cartons with 15–20 good potatoes. Extended guides contain the queue through the belt exit, and the gate waits for the replacement carton to arrive. The terminal belt clears coasting produce before PhysX closes the lids.
+6. Newton simulates the Franka FR3, four suction contacts, loaded cartons and pallet. The arm places six cartons.
+7. The complete pallet and load return to PhysX. A SimReady forklift aligns its fork carriage with the measured pallet position, then lifts and delivers the load to dispatch through contact.
 
 ## Run options
 

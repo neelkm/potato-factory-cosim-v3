@@ -24,6 +24,10 @@ def rotation(yaw,pitch=0):
 class FactoryLine:
     def __init__(self,water=True,source='factory_physx.usda',external_control=False):
         self.meta=json.loads((OUT/'manifest.json').read_text());self.water=water
+        self.scrub_config=json.loads((OUT/'scrub_config.json').read_text()) if str(source).endswith('factory_physx_scrub.usda') else None
+        if self.scrub_config:
+            disabled=set(self.scrub_config['disabled_rollers'])
+            self.meta['rollers']=[r for r in self.meta['rollers'] if r['name'] not in disabled]
         set_log_level(LogLevel.ERROR)
         self.stage=ovstage.Stage('field-flow-line');self.px=PhysX();set_log_level(LogLevel.ERROR)
         ovstage.population.open_usd(self.stage,str(OUT/source),ordinal=1,domains=ovstage.PopulationDomain.PHYSICS)
@@ -39,6 +43,10 @@ class FactoryLine:
         self.force=self.px.create_tensor_binding(prim_paths=list(self.potatoes),tensor_type=TensorType.RIGID_BODY_FORCE,raise_if_empty=True)
         self.velocity=self.px.create_tensor_binding(prim_paths=self.force.prim_paths,tensor_type=TensorType.RIGID_BODY_VELOCITY,raise_if_empty=True)
         self.force_index={p:i for i,p in enumerate(self.force.prim_paths)};self.vel=np.zeros(self.velocity.shape,np.float32);self.forces=np.zeros(self.force.shape,np.float32)
+        self.scrubber=None
+        if self.scrub_config:
+            from scrub_station import ScrubContacts
+            self.scrubber=ScrubContacts(self.px,list(self.potatoes),self.scrub_config['brushes'])
         from line_attribute_updates import ChangedAttributes
         self.changed_attributes=ChangedAttributes()
         self.queries={};self.events=[];self.washed=set();self.wash_dose={};self.wash_times={};self.inspected=set();self.rejects={}
@@ -101,7 +109,8 @@ class FactoryLine:
         # while the rejection guard is open for an earlier damaged potato.
         candidates=[p for p in self.potatoes if p not in self.inspected and 4.02<self.pose_map[p][0]<4.38 and abs(self.pose_map[p][1])<.80 and 1.46<self.pose_map[p][2]<1.95]
         candidate=max(candidates,key=lambda p:self.pose_map[p][0]) if candidates else None
-        inputs=dict(presence=bool(candidate),objectId=int(candidate[-3:]) if candidate else -1,defectScore=self.potatoes[candidate]['defect_fraction'] if candidate else 0,washed=candidate in self.washed,boxCount=count,boxReady=ready,armBusy=self.packing is not None,palletCount=self.pallet_count,targetCount=self.box_target)
+        process_ready=candidate in self.washed and (self.scrubber is None or candidate in self.scrubber.times)
+        inputs=dict(presence=bool(candidate),objectId=int(candidate[-3:]) if candidate else -1,defectScore=self.potatoes[candidate]['defect_fraction'] if candidate else 0,washed=process_ready,boxCount=count,boxReady=ready,armBusy=self.packing is not None,palletCount=self.pallet_count,targetCount=self.box_target)
         self.control_context=dict(dt=dt,ready=ready,count=count,b=self.pose_map[f'/World/Box_{min(self.box_index,5)}'][:3].copy(),tick=self.frame)
         return inputs
     def apply_controls(self,outputs):
@@ -151,9 +160,16 @@ class FactoryLine:
         # Rotation resistance represents the loaded wash bed; free produce
         # regains normal rotation on the belts and inside cartons.
         damping=np.array([100. if -1.80<self.pose_map[p][0]<4.85 and self.pose_map[p][2]>1.3 else .25 for p in self.potatoes],np.float32)
+        if self.scrubber:
+            from scrub_station import START,END
+            for i,p in enumerate(self.potatoes):
+                if START-.04<self.pose_map[p][0]<END+.04 and self.pose_map[p][2]>1.3:damping[i]=12.
         self.changed_attributes.write(self,list(self.potatoes),'physxRigidBody:angularDamping',damping)
         roller_paths=['/World/Joints/'+r['name'] for r in self.meta['rollers']]
         self.changed_attributes.write(self,roller_paths,'drive:angular:physics:targetVelocity',np.full(len(roller_paths),math.degrees(self.motor_speed/ROLL_RADIUS),np.float32))
+        if self.scrubber:
+            brushes=self.scrub_config['brushes']
+            self.changed_attributes.write(self,['/World/Joints/'+b['name'] for b in brushes],'drive:angular:physics:targetVelocity',np.asarray([math.degrees(self.motor_speed/b['radius']*b['speed_ratio']) for b in brushes],np.float32))
         self.stage.advance_write_floor(self.ordinal).wait()
         if self.changed_attributes.dirty:self.px.update_from_ovstage(self.ordinal,self.ordinal)
         self.control_context=None;self.control_applied_tick=self.frame
@@ -204,9 +220,13 @@ class FactoryLine:
                 f=self.forces[self.force_index[path]]
                 if np.any(f):self.m.push(path,f)
             self.px.step_sync(1/PHYSICS_HZ);self.frame+=1;self.t=self.frame/PHYSICS_HZ
+            if self.scrubber:
+                for path in self.scrubber.sample(1/PHYSICS_HZ,self.t):
+                    self.event('scrub_complete',potato=path,contact_seconds=self.scrubber.seconds[path],slip_metres=self.scrubber.slip[path])
         self.read()
         if self.frame%PHYSICS_HZ==0:self.history.append(dict(time=self.t,box=self.box_index,pallet=self.pallet_count,box_count=len(self.box_members[min(self.box_index,5)]),box_target=self.box_target,reserved=len(self.reserved),washed=len(self.washed),inspected=len(self.inspected)))
     def close(self):
+        if self.scrubber:self.scrubber.close()
         if self.fmi:self.fmi.close()
         self.force.destroy();self.velocity.destroy()
         for q in self.queries.values():self.stage.release_query(q).wait()

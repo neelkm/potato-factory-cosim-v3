@@ -20,6 +20,15 @@ def main():
     expected={o['potato']:o['damaged'] for o in m['outcomes']}
     check('every_potato_inspected_exactly_once',len(decisions)==len(expected) and {e['potato'] for e in decisions}==set(expected))
     check('every_potato_washed_before_inspection',set(m['wash_times'])==set(expected) and all(m['wash_times'][e['potato']]<=e['time']+1e-4 for e in decisions))
+    if m.get('scrub'):
+        scrub=m['scrub'];times=m.get('scrub_times',{});thresholds=scrub['thresholds']
+        check('native_brush_contacts_recorded',scrub['contact_rows']>0 and scrub['peak_normal_force_N']>0)
+        check('every_potato_scrubbed_before_inspection',set(times)==set(expected) and all(times.get(e['potato'],float('inf'))<=e['time']+1e-4 for e in decisions))
+        check('wash_precedes_scrub_completion',all(m['wash_times'].get(path,float('inf'))<=t for path,t in times.items()))
+        check('scrubbing_meets_contact_and_slip_thresholds',all(scrub['contact_seconds'].get(path,0)>=thresholds['seconds'] and scrub['slip_metres'].get(path,0)>=thresholds['slip_metres'] for path in expected))
+        brushes=[i for i,path in enumerate(paths) if path.startswith('/World/ScrubBrush_')]
+        check('six_driven_brushes_captured',len(brushes)==6 and all(np.max(np.abs(a[:,i,3:]-a[0,i,3:]))>.1 for i in brushes))
+        check('brush_centres_stay_within_0_1mm_of_fixed_anchors',len(brushes)==6 and all(np.max(np.linalg.norm(a[:,i,:3]-a[0,i,:3],axis=1))<.0001 for i in brushes))
     check('inspection_decisions_match_visible_quality',all(e['potato'] in expected and (e['kind']=='reject')==expected[e['potato']] for e in decisions))
     check('no_floor_spillage',locations['floor']==0);check('all_potatoes_accounted_for',sum(locations[f'box_{i}'] for i in range(6))+locations['discard']==126)
     attach=[e for e in events if e['kind']=='vacuum_attached'];release=[e for e in events if e['kind']=='vacuum_released']

@@ -64,7 +64,8 @@ def assemble_replay(cache, clips, count, name):
     layer = Sdf.Layer.CreateNew(str(OUT/name))
     if not UsdUtils.StitchClips(layer, [str(p) for p in clips], Sdf.Path('/World'), 0, count-1):
         raise RuntimeError('USD value clip stitching failed')
-    layer.subLayerPaths.append('factory.usda'); layer.Save()
+    meta=json.loads((cache/'simulation.json').read_text())
+    layer.subLayerPaths.append(meta.get('presentation_source','factory.usda')); layer.Save()
     stage = Usd.Stage.Open(layer)
     stage.SetDefaultPrim(stage.GetPrimAtPath('/World'))
     stage.SetTimeCodesPerSecond(30); stage.SetFramesPerSecond(30)

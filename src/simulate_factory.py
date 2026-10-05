@@ -27,6 +27,7 @@ def classify(manifest,paths,pose,washed):
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('--seconds',type=float,default=1800);ap.add_argument('--cache',default='cache');ap.add_argument('--stop-after-cartons',type=int);ap.add_argument('--newton-iterations',type=int,default=32)
     ap.add_argument('--profile',choices=['production','simple_controls','diagnostic_rpc'],default='production')
+    ap.add_argument('--physx-source',default='factory_physx.usda')
     ap.add_argument('--qualification',action='store_true',help='Allow an intentionally incomplete short native run')
     args=ap.parse_args();profile=get_profile(args.profile)
     dest=OUT/args.cache;dest.mkdir(exist_ok=False)
@@ -38,7 +39,7 @@ def main():
     manifest=json.loads((OUT/'manifest.json').read_text());engines={};control=None;graph=None;failure=None;poses=water=None;used=0;report={};cycle=None;robot_events=[];requests=[];peak={};start=time.perf_counter();returned=False
     try:
         for name in ['physx','newton']:engines[name]=EngineProcess(name)
-        pd=engines['physx'].call('load',source='factory_physx.usda',factory=True,external_control=True)
+        pd=engines['physx'].call('load',source=args.physx_source,factory=True,external_control=True)
         standby=['/World/'+p['name'] for p in manifest['potatoes']]+['/World/'+p['name'] for p in manifest['bodies'] if p['name'].startswith(('Box_','Flap_'))]
         nd=engines['newton'].call('load',source=str(OUT/'factory_newton.usda'),inactive=standby,iterations=args.newton_iterations,robot=True)
         robot_paths=[p for p in nd['paths'] if p.startswith('/World/Franka/') or p=='/World/Tool']
@@ -116,6 +117,8 @@ def main():
                 try:report=engines['physx'].call('report')
                 except Exception:pass
             report.setdefault('events',[]);report.setdefault('wash_times',{});report.setdefault('pallet_count',0);report['manifest']=None
+            report['physics_source']=args.physx_source
+            report['presentation_source']='factory_scrub.usda' if args.physx_source=='factory_physx_scrub.usda' else 'factory.usda'
             if cycle:robot_events.extend(cycle.events)
             report.update(error=failure,used_frames=used,seconds=(used-1)/30,rigid_bodies=len(paths),events=sorted(report['events']+robot_events,key=lambda e:e['time']),ownership_events=c.events,final_owners=c.owners,carton_requests=requests,robot=peak,wall_seconds=time.perf_counter()-start,sdk_versions={'physx_worker':pd.get('versions',{}),'newton_worker':nd.get('versions',{})},newton_internal_hz=nd['internal_hz'],newton_iterations=args.newton_iterations)
             report['failed_transfer']=c.pending_transfer

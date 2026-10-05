@@ -5,8 +5,8 @@ from pxr import Usd,Sdf,Ar
 ROOT=Path(__file__).resolve().parents[1]
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--root',type=Path,default=ROOT);args=parser.parse_args();root=args.root.resolve()
-    stage=Usd.Stage.Open(str(root/'output/factory.usda'));missing=[];outside=[];resolved=set();builtins=set()
+    parser=argparse.ArgumentParser();parser.add_argument('--root',type=Path,default=ROOT);parser.add_argument('--stage',default='factory.usda');args=parser.parse_args();root=args.root.resolve()
+    stage=Usd.Stage.Open(str(root/'output'/args.stage));missing=[];outside=[];resolved=set();builtins=set()
     for prim in stage.Traverse():
         for attribute in prim.GetAttributes():
             if attribute.GetTypeName() not in (Sdf.ValueTypeNames.Asset,Sdf.ValueTypeNames.AssetArray):continue

@@ -14,6 +14,10 @@ def overlay(pixels,shot,t,k,total,tracking=None):
     def txt(x,y,label,size=27,bold=False,color=(242,240,229,255)):d.text((int(x*s),int(y*s)),label,font=font(int(size*s),bold),fill=color)
     rect(38,30,305,85,(10,29,27,215));txt(59,40,'FIELD / FLOW',29,True)
     rect(1580,30,1880,85,(10,29,27,215));txt(1602,43,f'SIMULATION  {t:06.2f}s',24)
+    if 'cleaning_times' in shot:
+        done=sum(when<=t for when in shot['cleaning_times'])
+        rect(38,103,655,160,(10,29,27,215))
+        txt(59,116,f"BRUSH CONTACT CHECK  {done:03d} / {len(shot['cleaning_times'])}",25,True)
     panel_width=870 if 'tracked' in shot else (1050 if shot['view']=='Overall' else 1240)
     rect(38,895,panel_width,1030,(10,29,27,225));d.rectangle((int(38*s),int(895*s),int(46*s),int(1030*s)),fill=(217,174,86,255))
     txt(68,914,shot['title'],36,True);txt(68,973,shot['caption'],25,color=(196,217,207,255))

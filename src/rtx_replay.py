@@ -10,6 +10,7 @@ VIEWS={
  'Overall':((15.5,-24.5,14),(1,-2.0,1.0)),
  'Truck unloading':((-3.2,-4.2,7.8),(-5.65,0,2.25)),
  'Water wash':((1.4,-3.4,3.7),(0,0,1.8)),
+ 'Dirt scrubbing':((2.6,-1.6,3.1),(2.30,0,1.48)),
  'Quality & rejection':((5.8,-6.2,4.5),(4.15,-.65,1.0)),
  'Carton filling':((8.05,.6,3.3),(7.95,0,1.25)),
  'Carton closing':((8.1,.7,2.9),(7.95,0,1.32)),
@@ -108,7 +109,7 @@ over "Render" {{
 def metrics(meta,t):
     ev=[e for e in meta.get('events',[]) if e['time']<=t]
     history=[h for h in meta.get('history',[]) if h['time']<=t];h=history[-1] if history else {}
-    return {'washed':sum(v<=t for v in meta.get('wash_times',{}).values()),'accepted':sum(e['kind']=='accept' for e in ev),'rejected':sum(e['kind']=='reject' for e in ev),'pallet':h.get('pallet',0),'box_count':h.get('box_count',0),'box_target':h.get('box_target',18)}
+    return {'washed':sum(v<=t for v in meta.get('wash_times',{}).values()),'scrubbed':sum(v<=t for v in meta.get('scrub_times',{}).values()),'accepted':sum(e['kind']=='accept' for e in ev),'rejected':sum(e['kind']=='reject' for e in ev),'pallet':h.get('pallet',0),'box_count':h.get('box_count',0),'box_target':h.get('box_target',18)}
 
 def station_times(meta):
     """Navigation follows the loaded run, including freshly computed batches."""
@@ -119,6 +120,7 @@ def station_times(meta):
     wash=min(meta.get('wash_times',{}).values(),default=0.)+4
     grip=next((e['time'] for e in events if e['kind']=='vacuum_attached'),full+4)
     moments={'Overall':wash,'Truck unloading':15.5,'Water wash':wash,
+             'Dirt scrubbing':min(meta.get('scrub_times',{}).values(),default=wash)+1,
              'Quality & rejection':reject-.7,'Carton filling':full-4.8,
              'Carton closing':full+.3,'Robot palletizing':grip,
              'Forklift dispatch':fork+7,'Factory hero':meta['seconds']-3}

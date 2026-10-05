@@ -51,7 +51,8 @@ class PhysXLineAdapter(PhysXEngine):
     def pallet_returned(self):self.line.pallet_returned=True
     def report(self):
         s=self.line
-        return dict(seconds=s.t,cache_fps=30,physics_hz=240,potatoes=len(s.potatoes),water=s.water,fluid_particles=s.inlet.n if s.inlet else 0,recycled_particles=s.inlet.recycled if s.inlet else 0,wash_times=s.wash_times,events=s.events,history=s.history,boxes=[sorted(v) for v in s.box_members],pallet_count=s.pallet_count,forklift_complete=s.forkdone,max_truck_potato_speed=s.max_truck_speed,manifest=s.meta)
+        return dict(seconds=s.t,cache_fps=30,physics_hz=240,potatoes=len(s.potatoes),water=s.water,fluid_particles=s.inlet.n if s.inlet else 0,recycled_particles=s.inlet.recycled if s.inlet else 0,wash_times=s.wash_times,events=s.events,history=s.history,boxes=[sorted(v) for v in s.box_members],pallet_count=s.pallet_count,forklift_complete=s.forkdone,max_truck_potato_speed=s.max_truck_speed,manifest=s.meta,
+                    scrub=s.scrubber.report() if s.scrubber else None,scrub_times=s.scrubber.times if s.scrubber else {})
     def close(self):
         for b in self.bindings.values():b.destroy()
         self.line.close()

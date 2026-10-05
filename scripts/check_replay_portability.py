@@ -9,11 +9,11 @@ ROOT=Path(__file__).resolve().parents[1]
 def digest(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('--root',type=Path,required=True);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--root',type=Path,required=True);parser.add_argument('--scrub',action='store_true');args=parser.parse_args()
     relocated=args.root.resolve();out=relocated/'output'
     if relocated==ROOT:raise RuntimeError('Use a separately extracted release folder')
     if not json.loads((out/'asset_validation.json').read_text())['passed']:raise RuntimeError('Relocated scene assets have not passed')
-    stage=Usd.Stage.Open(str(out/'factory_replay.usdc'))
+    stage=Usd.Stage.Open(str(out/('factory_scrub_replay.usdc' if args.scrub else 'factory_replay.usdc')))
     if not stage:raise RuntimeError('Relocated replay could not be opened')
     world=stage.GetPrimAtPath('/World');sets=world.GetMetadata('clips') or {};dependencies=[]
     for spec in world.GetPrimStack():
@@ -30,9 +30,10 @@ def main():
                 if not path.is_relative_to(relocated):raise RuntimeError('Clip resolves outside the extracted release')
                 dependencies.append(path.relative_to(relocated).as_posix())
     if not sets or not dependencies:raise RuntimeError('No recorded value clips found')
-    run=json.loads((out/'cache/simulation.json').read_text());paths=json.loads((out/'cache/paths.json').read_text())
+    cache=out/('scrub_20261005' if args.scrub else 'cache')
+    run=json.loads((cache/'simulation.json').read_text());paths=json.loads((cache/'paths.json').read_text())
     if run.get('error'):raise RuntimeError('Production run failed')
-    poses=np.load(out/'cache/poses.npy',mmap_mode='r');peak=0.;water_samples=[]
+    poses=np.load(cache/'poses.npy',mmap_mode='r');peak=0.;water_samples=[]
     try:
         for frame in [0,run['used_frames']-1]:
             for i,path in enumerate(paths):
@@ -47,6 +48,7 @@ def main():
                 frames=run['used_frames'],water_points_first_last=water_samples,
                 assets_manifest_sha256=digest(ROOT/'dist/assets-manifest.json'),replay_manifest_sha256=digest(ROOT/'dist/replay-manifest.json'),
                 scope='Verified release archives extracted into a separate folder. All explicit USD clip paths resolve locally; first and last body/water samples match the measured cache. Original replay validation checks every clip boundary.')
-    (ROOT/'output/replay_portability_validation.json').write_text(json.dumps(report,indent=2));print('REPLAY_PORTABILITY_PASSED',len(set(dependencies)),peak)
+    if args.scrub:report['scrub_manifest_sha256']=digest(ROOT/'dist/scrub-manifest.json')
+    (ROOT/'output'/('scrub_portability_validation.json' if args.scrub else 'replay_portability_validation.json')).write_text(json.dumps(report,indent=2));print('REPLAY_PORTABILITY_PASSED',len(set(dependencies)),peak)
 
 if __name__=='__main__':main()

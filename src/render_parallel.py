@@ -16,13 +16,15 @@ def initialize(options):
     global _renderer,_options,_poses,_paths
     _options=options
     _poses=None;_paths=None
-    atexit.register(close)
 
 def ensure_renderer():
     global _renderer,_poses,_paths
     if _renderer is not None:return
     options=_options
     _renderer=Replay(options['width'],options['width']*9//16,options['spp'],source=options['source'],cache=options['cache'],tag='film_worker_'+str(os.getpid()))
+    # Register after SDK initialization so this runs before the SDK's own
+    # teardown (atexit callbacks execute in reverse registration order).
+    atexit.register(close)
     _poses=np.load(OUT/options['cache']/'poses.npy',mmap_mode='r')
     _paths=json.loads((OUT/options['cache']/'paths.json').read_text())
 
@@ -51,8 +53,9 @@ def shot_job(job):
             tracking=(_poses[round(t*30),_paths.index(shot['tracked']),:3],cam,np.asarray(target,float)) if 'tracked' in shot else None
             final=overlay(pixels,shot,t,offset+k,total,tracking);writer.append_data(final)
             if k==n//2:
-                Image.fromarray(final).save(OUT/f'station_{si:02}.jpg',quality=95)
-                if si==0:Image.fromarray(final).save(OUT/'poster.jpg',quality=95)
+                media=Path(_options.get('artifact_dir',str(OUT)))
+                Image.fromarray(final).save(media/f'station_{si:02}.jpg',quality=95)
+                if si==0:Image.fromarray(final).save(media/'poster.jpg',quality=95)
             if k%12==0 or k==n-1:atomic_json(directory/f'shot_{si:02}.json',dict(station=si+1,frames=k+1,total=n,state='rendering'),timeout=1,required=False)
     finally:writer.close()
     reader=imageio.get_reader(temporary)
@@ -66,16 +69,21 @@ def shot_job(job):
     atomic_json(directory/f'shot_{si:02}.json',result);print('SHOT_COMPLETE',shot['title'],round(result['seconds'],1),flush=True)
     return result
 
-def render(args):
+def render(args,shots=None,output='potato_factory.mp4',artifact_dir=None):
     start=time.perf_counter();validation=json.loads((OUT/args.cache/'validation.json').read_text())
     if not validation['passed']:raise RuntimeError('Full factory validation is required')
     path=OUT/args.cache/'simulation.json';meta=json.loads(path.read_text());checksum=hashlib.sha256(path.read_bytes()).hexdigest()
-    shots=storyboard(meta);total=sum(round(s['duration']*24) for s in shots);directory=OUT/'render_shots';directory.mkdir(exist_ok=True)
-    options=dict(width=args.width,spp=args.spp,source=args.source,cache=args.cache,seconds=meta['seconds'])
+    media=Path(artifact_dir) if artifact_dir else OUT;media.mkdir(parents=True,exist_ok=True)
+    shots=storyboard(meta) if shots is None else shots
+    total=sum(round(s['duration']*24) for s in shots);directory=media/'render_shots';directory.mkdir(exist_ok=True)
+    options=dict(width=args.width,spp=args.spp,source=args.source,cache=args.cache,seconds=meta['seconds'],artifact_dir=str(media))
     jobs=[];offset=0
     source_hashes={name:hashlib.sha256((Path(__file__).parent/name).read_bytes()).hexdigest() for name in ['rtx_replay.py','render_video.py','render_parallel.py','storyboard.py']}
     source_hashes.update({name:hashlib.sha256((OUT/name).read_bytes()).hexdigest() for name in ['factory.usda','factory_geometry.usdc',args.source]})
     source_hashes.update({p.relative_to(OUT).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in (OUT/'textures').rglob('*') if p.is_file()})
+    if meta.get('scrub'):
+        source_hashes.update({name:hashlib.sha256((OUT/name).read_bytes()).hexdigest() for name in ['factory_scrub.usda','scrub_visuals.usda']})
+        if (OUT/'scrub_labels.usdc').exists():source_hashes['scrub_labels.usdc']=hashlib.sha256((OUT/'scrub_labels.usdc').read_bytes()).hexdigest()
     from importlib.metadata import version
     source_hashes.update({name:version(name) for name in ['ovrtx','ovstage']})
     for index,shot in enumerate(shots):
@@ -98,12 +106,12 @@ def render(args):
                 for index in range(len(shots)):
                     try:rows.append(json.loads((directory/f'shot_{index:02}.json').read_text()))
                     except (OSError,ValueError):pass
-                atomic_json(OUT/'render_progress.json',dict(state='rendering',frames=sum(r['frames'] for r in rows),total=total,
+                atomic_json(media/'render_progress.json',dict(state='rendering',frames=sum(r['frames'] for r in rows),total=total,
                     completed_stations=len(results),stations=len(shots),workers=args.workers,wall_seconds=round(time.perf_counter()-start,1)),timeout=1,required=False)
         if sum(row['frames'] for row in results)!=total or len(results)!=len(shots):raise RuntimeError('Incomplete shot set')
         if hashlib.sha256(path.read_bytes()).hexdigest()!=checksum:raise RuntimeError('Simulation changed during render')
         listing=directory/'concat.txt';listing.write_text(''.join(f"file 'shot_{index:02}.mp4'\n" for index in range(len(shots))))
-        target=OUT/'potato_factory.mp4';temporary=OUT/'potato_factory.pending.mp4'
+        target=OUT/output;temporary=target.with_suffix('.pending.mp4')
         subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(),'-hide_banner','-loglevel','error','-y','-f','concat','-safe','0','-i',str(listing),'-c','copy','-movflags','+faststart',str(temporary)],check=True)
         reader=imageio.get_reader(temporary)
         try:
@@ -114,8 +122,8 @@ def render(args):
                       renderer='ovrtx PathTracing with OptiX denoising',seconds=total/24,source=args.source,cache=args.cache,
                       wall_seconds=time.perf_counter()-start,simulation_sha256=checksum,workers=args.workers,
                       encoding='Each shot encoded once with libx264 CRF 17; final concatenation uses stream copy',shots=sorted(results,key=lambda r:r['station']))
-        atomic_json(OUT/'render_manifest.json',manifest)
-        atomic_json(OUT/'render_progress.json',dict(state='complete',frames=total,total=total,workers=args.workers,wall_seconds=time.perf_counter()-start))
+        atomic_json(media/'render_manifest.json',manifest)
+        atomic_json(media/'render_progress.json',dict(state='complete',frames=total,total=total,workers=args.workers,wall_seconds=time.perf_counter()-start))
         print('PARALLEL_FILM_COMPLETE',total,round(time.perf_counter()-start,1),flush=True)
     except BaseException:
-        atomic_json(OUT/'render_progress.json',dict(state='failed',completed_stations=len(results),total=total,workers=args.workers));raise
+        atomic_json(media/'render_progress.json',dict(state='failed',completed_stations=len(results),total=total,workers=args.workers));raise
